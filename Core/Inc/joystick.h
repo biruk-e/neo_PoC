@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 #define JOYSTICK_ADC_CHANNELS 2 // we are reading from 2 adc channels
+#define JOYSTICK_ADC_UNREACHABLE_BAND 163.8f // upper region of ADC voltage that can't be reached (with current setup)
 #define JOYSTICK_ADC_MAX_RAW 4095.0f // can be used for conversion math later on (float to prevent unwanted rounding down)
 #define JOYSTICK_DEFAULT_DEADZONE 150 // band in adc readings in which any fluctuation is ignored
 #define JOYSTICK_DEFAULT_MIDPOINT 2047 // default midpoint of adc range (4095/2)
@@ -26,12 +27,12 @@ typedef struct {
 	Joystick_Calib_t calib; // calibration parameters
 
 	// normalized values that are exposed to application layer
-	float x_norm;
-	float y_norm;
+	volatile float x_norm;
+	volatile float y_norm;
 
 	// raw ADC values that can be accessed if needed for debugging
-	uint16_t x_raw;
-	uint16_t y_raw;
+	volatile uint16_t x_raw;
+	volatile uint16_t y_raw;
 } Joystick_t;
 
 // public API

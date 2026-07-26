@@ -39,7 +39,7 @@ HAL_StatusTypeDef Joystick_Init(Joystick_t *joystick, ADC_HandleTypeDef *hadc) {
 }
 
 /**
- * @brief Samples resting ADC readings to set dynamic zero points for x and y axes
+ * @brief Samples resting ADC readings and compute avg to set dynamic zero points for x and y axes
  * @param joystick: pointer to an instance of Joystick_t
  */
 void Joystick_Calibrate(Joystick_t *joystick) {
@@ -47,9 +47,20 @@ void Joystick_Calibrate(Joystick_t *joystick) {
 	if (joystick == NULL) {
 		return;
 	}
-	// sample current ADC readings and set as the center for each axis (VRy = x, and VRx = y for current orientation of breakout)
-	joystick->calib.center_x = joystick->raw_dma[1];
-	joystick->calib.center_y = joystick->raw_dma[0];
+
+	// sample ADC readings, compute average, and set as the center for each axis (VRy = x, and VRx = y for current orientation of breakout)
+	uint32_t sum_x = 0;
+	uint32_t sum_y = 0;
+	const uint16_t samples = 32;
+
+	for (uint16_t i = 0; i < samples; i++) {
+		sum_x += joystick->raw_dma[1];
+		sum_y += joystick->raw_dma[0];
+		HAL_Delay(2);
+	}
+
+	joystick->calib.center_x = (uint16_t)(sum_x / samples);
+	joystick->calib.center_y = (uint16_t)(sum_y / samples);
 }
 
 /**
@@ -71,34 +82,30 @@ void Joystick_Update(Joystick_t *joystick) {
 	int32_t delta_y = (int32_t)joystick->y_raw - (int32_t)joystick->calib.center_y; // delta_y = y_raw - center_y
 
 	// x-axis normalization
-	if (abs(delta_x) <= joystick->calib.deadzone) {
-		joystick->x_norm = 0.0f;
-	} else {
-		if (delta_x > 0) { /*pushing right*/
-			float effective_delta_x = (float)delta_x - (float)joystick->calib.deadzone; // effective_delta_x = delta_x - deadzone
-			float max_span = JOYSTICK_ADC_MAX_RAW - (float)joystick->calib.center_x - (float)joystick->calib.deadzone; // max_span = 4095 - center_x - deadzone
-			joystick->x_norm = effective_delta_x / max_span; // normalized x (can be [-1.0 to +1.0] in general)
-		} else { /*pushing left*/
-			float effective_delta_x = (float)delta_x + (float)joystick->calib.deadzone; // effective_delta_x = delta_x + deadzone
-			float min_span = (float)joystick->calib.center_x - (float)joystick->calib.deadzone; // min_span = center_x - deadzone
-			joystick->x_norm = effective_delta_x / min_span; // normalized x (can be [-1.0 to +1.0] in general)
-		}
-	}
+	if (labs(delta_x) <= joystick->calib.deadzone) {
+	        joystick->x_norm = 0.0f;
+	    } else if (delta_x > 0) {
+	        float effective_delta = (float)delta_x - (float)joystick->calib.deadzone;
+	        float max_span = JOYSTICK_ADC_MAX_RAW - JOYSTICK_ADC_UNREACHABLE_BAND - (float)joystick->calib.center_x - (float)joystick->calib.deadzone;
+	        joystick->x_norm = (max_span >= 0.0f) ? (effective_delta / max_span) : 0.0f;
+	    } else {
+	        float effective_delta = (float)delta_x + (float)joystick->calib.deadzone;
+	        float min_span = (float)joystick->calib.center_x - (float)joystick->calib.deadzone;
+	        joystick->x_norm = (min_span >= 0.0f) ? (effective_delta / min_span) : 0.0f;
+	    }
 
-	// x-axis normalization
-		if (abs(delta_y) <= joystick->calib.deadzone) {
-			joystick->y_norm = 0.0f;
-		} else {
-			if (delta_y > 0) { /*pushing right*/
-				float effective_delta_y = (float)delta_y - (float)joystick->calib.deadzone; // effective_delta_y = delta_y - deadzone
-				float max_span = JOYSTICK_ADC_MAX_RAW - (float)joystick->calib.center_y - (float)joystick->calib.deadzone; // max_span = 4095 - center_y - deadzone
-				joystick->y_norm = effective_delta_y / max_span; // normalized y (can be [-1.0 to +1.0] in general)
-			} else { /*pushing left*/
-				float effective_delta_y = (float)delta_y + (float)joystick->calib.deadzone; // effective_delta_y = delta_y + deadzone
-				float min_span = (float)joystick->calib.center_y - (float)joystick->calib.deadzone; // min_span = center_y - deadzone
-				joystick->y_norm = effective_delta_y / min_span; // normalized y (can be [-1.0 to +1.0] in general)
-			}
-		}
+	// y-axis normalization
+	if (labs(delta_y) <= joystick->calib.deadzone) {
+	        joystick->y_norm = 0.0f;
+	    } else if (delta_y > 0) {
+	        float effective_delta = (float)delta_y - (float)joystick->calib.deadzone;
+	        float max_span = JOYSTICK_ADC_MAX_RAW - JOYSTICK_ADC_UNREACHABLE_BAND - (float)joystick->calib.center_y - (float)joystick->calib.deadzone;
+	        joystick->y_norm = (max_span >= 0.0f) ? (effective_delta / max_span) : 0.0f;
+	    } else {
+	        float effective_delta = (float)delta_y + (float)joystick->calib.deadzone;
+	        float min_span = (float)joystick->calib.center_y - (float)joystick->calib.deadzone;
+	        joystick->y_norm = (min_span >= 0.0f) ? (effective_delta / min_span) : 0.0f;
+	    }
 
 		// clamp x_norm and y_norm to be within -1.0 to +1.0 (accounts for slightly-off center midpoint during calibration)
 		if (joystick->x_norm > 1.0f) {
