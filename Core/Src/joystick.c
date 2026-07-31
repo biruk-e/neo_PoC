@@ -39,7 +39,7 @@ HAL_StatusTypeDef Joystick_Init(Joystick_t *joystick, ADC_HandleTypeDef *hadc) {
 }
 
 /**
- * @brief Samples resting ADC readings and compute avg to set dynamic zero points for x and y axes
+ * @brief Samples resting ADC readings and computes avg to set dynamic zero points for x and y axes
  * @param joystick: pointer to an instance of Joystick_t
  */
 void Joystick_Calibrate(Joystick_t *joystick) {

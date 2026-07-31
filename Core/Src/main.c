@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "joystick.h"
+#include "mpu6500.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,6 +45,7 @@ ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
 I2C_HandleTypeDef hi2c1;
+DMA_HandleTypeDef hdma_i2c1_rx;
 
 SPI_HandleTypeDef hspi1;
 
@@ -51,6 +53,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 Joystick_t joystick;
+MPU6500_t mpu;
+uint32_t interrupt_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -112,6 +116,11 @@ int main(void)
   HAL_Delay(1000); // wait for first ADC/DMA conversion to complete before calibration
 
   Joystick_Calibrate(&joystick);
+
+  if (MPU6500_Init(&mpu, &hi2c1) != HAL_OK) {
+	  while(1); // halt
+  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -119,7 +128,14 @@ int main(void)
   while (1)
   {
 	  Joystick_Update(&joystick);
-	  HAL_Delay(100);
+
+	  if (mpu.data_ready) {
+	          mpu.data_ready = 0;
+	          // Run complementary filter / tilt calculations for Gravity Maze here!
+	      }
+
+
+	  HAL_Delay(10);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -380,6 +396,11 @@ static void MX_DMA_Init(void)
   /* DMA controller clock enable */
   __HAL_RCC_DMA1_CLK_ENABLE();
 
+  /* DMA interrupt init */
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+
 }
 
 /**
@@ -400,14 +421,23 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, BZR_Pin|SPI1_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(BZR_GPIO_Port, BZR_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : BZR_Pin SPI1_CS_Pin */
-  GPIO_InitStruct.Pin = BZR_Pin|SPI1_CS_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SPI1_CS_GPIO_Port, SPI1_CS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : BZR_Pin */
+  GPIO_InitStruct.Pin = BZR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(BZR_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : B_EXT_Pin */
+  GPIO_InitStruct.Pin = B_EXT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B_EXT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MPU_INT_Pin */
   GPIO_InitStruct.Pin = MPU_INT_Pin;
@@ -415,11 +445,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(MPU_INT_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : B_EXT_Pin */
-  GPIO_InitStruct.Pin = B_EXT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(B_EXT_GPIO_Port, &GPIO_InitStruct);
+  /*Configure GPIO pin : SPI1_CS_Pin */
+  GPIO_InitStruct.Pin = SPI1_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(SPI1_CS_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -427,6 +462,36 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+/**
+  * @brief EXTI GPIO Callback (MPU6500 INT pin firing)
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == MPU_INT_Pin) {
+    	interrupt_count++;
+        MPU6500_OnGpioInterrupt(&mpu);
+    }
+}
+
+/**
+  * @brief I2C DMA Transfer Complete Callback
+  */
+void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
+    if (hi2c->Instance == I2C1) {
+        MPU6500_OnDmaComplete(&mpu);
+    }
+}
+
+/**
+  * @brief I2C Error Callback
+  */
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
+    if (hi2c->Instance == I2C1) {
+        mpu.dma_busy = 0; // Reset flag so next EXTI can retry
+        HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+    }
+}
 
 /* USER CODE END 4 */
 

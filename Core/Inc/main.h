@@ -67,18 +67,19 @@ void Error_Handler(void);
 #define VRy_GPIO_Port GPIOA
 #define BZR_Pin GPIO_PIN_4
 #define BZR_GPIO_Port GPIOA
-#define SPI1_CS_Pin GPIO_PIN_6
-#define SPI1_CS_GPIO_Port GPIOA
+#define B_EXT_Pin GPIO_PIN_7
+#define B_EXT_GPIO_Port GPIOA
 #define MPU_INT_Pin GPIO_PIN_1
 #define MPU_INT_GPIO_Port GPIOB
+#define MPU_INT_EXTI_IRQn EXTI1_IRQn
 #define SWDIO_Pin GPIO_PIN_13
 #define SWDIO_GPIO_Port GPIOA
 #define SWCLK_Pin GPIO_PIN_14
 #define SWCLK_GPIO_Port GPIOA
 #define VCP_RX_Pin GPIO_PIN_15
 #define VCP_RX_GPIO_Port GPIOA
-#define B_EXT_Pin GPIO_PIN_3
-#define B_EXT_GPIO_Port GPIOB
+#define SPI1_CS_Pin GPIO_PIN_4
+#define SPI1_CS_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
