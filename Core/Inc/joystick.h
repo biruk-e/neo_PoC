@@ -17,14 +17,14 @@ typedef struct {
 	uint16_t center_x;
 	uint16_t center_y;
 	uint16_t deadzone;
-} Joystick_Calib_t;
+} joystick_calib_t;
 
 // typedef struct that represents the joystick and its state
 typedef struct {
 	ADC_HandleTypeDef *hadc; // pointer to ADC peripheral
 	volatile uint16_t raw_dma[JOYSTICK_ADC_CHANNELS]; // target DMA buffer
 
-	Joystick_Calib_t calib; // calibration parameters
+	joystick_calib_t calib; // calibration parameters
 
 	// normalized values that are exposed to application layer
 	volatile float x_norm;
@@ -33,12 +33,12 @@ typedef struct {
 	// raw ADC values that can be accessed if needed for debugging
 	volatile uint16_t x_raw;
 	volatile uint16_t y_raw;
-} Joystick_t;
+} joystick_t;
 
 // public API
-HAL_StatusTypeDef Joystick_Init(Joystick_t *joystick, ADC_HandleTypeDef *hadc);
-void Joystick_Calibrate(Joystick_t *joystick);
-void Joystick_Update(Joystick_t *joystick);
+HAL_StatusTypeDef joystick_init(joystick_t *joystick, ADC_HandleTypeDef *hadc);
+void joystick_calibrate(joystick_t *joystick);
+void joystick_update(joystick_t *joystick);
 
 #ifdef __cplusplus
 }

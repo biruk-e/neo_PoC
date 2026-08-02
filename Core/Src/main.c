@@ -52,9 +52,10 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-Joystick_t joystick;
-MPU6500_t mpu;
+joystick_t joystick;
+mpu6500_t mpu;
 uint32_t interrupt_count = 0;
+uint32_t dma_complete = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -109,15 +110,15 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  if (Joystick_Init(&joystick, &hadc1) == HAL_ERROR) { /*if joystick init fails*/
+  if (joystick_init(&joystick, &hadc1) == HAL_ERROR) { /*if joystick init fails*/
 	  while(1); // halt
   }
 
   HAL_Delay(1000); // wait for first ADC/DMA conversion to complete before calibration
 
-  Joystick_Calibrate(&joystick);
+  joystick_calibrate(&joystick);
 
-  if (MPU6500_Init(&mpu, &hi2c1) != HAL_OK) {
+  if (mpu6500_init(&mpu, &hi2c1) != HAL_OK) {
 	  while(1); // halt
   }
 
@@ -127,7 +128,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  Joystick_Update(&joystick);
+	  joystick_update(&joystick);
 
 	  if (mpu.data_ready) {
 	          mpu.data_ready = 0;
@@ -469,8 +470,8 @@ static void MX_GPIO_Init(void)
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == MPU_INT_Pin) {
-    	interrupt_count++;
-        MPU6500_OnGpioInterrupt(&mpu);
+        mpu6500_on_gpio_interrupt(&mpu);
+        interrupt_count++;
     }
 }
 
@@ -479,8 +480,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   */
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
     if (hi2c->Instance == I2C1) {
-        MPU6500_OnDmaComplete(&mpu);
+        mpu6500_on_dma_complete(&mpu);
     }
+    dma_complete++;
 }
 
 /**

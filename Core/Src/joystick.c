@@ -9,7 +9,7 @@
  * @param hadc: pointer to the ADC handle
  * @retval HAL_StatusTypeDef: HAL Status of the DMA start operation
  */
-HAL_StatusTypeDef Joystick_Init(Joystick_t *joystick, ADC_HandleTypeDef *hadc) {
+HAL_StatusTypeDef joystick_init(joystick_t *joystick, ADC_HandleTypeDef *hadc) {
 	// returns an error flag if either Joystick_t or ADC_HandleTypeDef handles have not been initialized in main
 	if (joystick == NULL || hadc == NULL) {
 		return HAL_ERROR;
@@ -42,7 +42,7 @@ HAL_StatusTypeDef Joystick_Init(Joystick_t *joystick, ADC_HandleTypeDef *hadc) {
  * @brief Samples resting ADC readings and computes avg to set dynamic zero points for x and y axes
  * @param joystick: pointer to an instance of Joystick_t
  */
-void Joystick_Calibrate(Joystick_t *joystick) {
+void joystick_calibrate(joystick_t *joystick) {
 	// immediately returns if joystick pointer is NULL
 	if (joystick == NULL) {
 		return;
@@ -67,7 +67,7 @@ void Joystick_Calibrate(Joystick_t *joystick) {
  * @brief Reads latest DMA values, calculates axis delta, applies deadzone, and normalizes output to [-1.0f, +1.0f]
  * @param joystick: pointer to an instance of Joystick_t
  */
-void Joystick_Update(Joystick_t *joystick) {
+void joystick_update(joystick_t *joystick) {
 	// immediately returns if joystick pointer is NULL
 		if (joystick == NULL) {
 			return;
